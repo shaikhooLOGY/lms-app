@@ -1,9 +1,17 @@
 'use client'
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '../../lib/supabaseClient'
 
 export default function AuthPage() {
+  return (
+    <Suspense fallback={<AuthFallback />}>
+      <AuthContent />
+    </Suspense>
+  )
+}
+
+function AuthContent() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [mode, setMode] = useState<'signin'|'signup'>('signin')
@@ -75,6 +83,14 @@ export default function AuthPage() {
       <div style={{marginTop:16}}>
         <button onClick={signOut} style={{padding:'6px 10px'}}>Sign out</button>
       </div>
+    </main>
+  )
+}
+
+function AuthFallback() {
+  return (
+    <main style={{maxWidth:420, margin:'40px auto', padding:24}}>
+      Loading…
     </main>
   )
 }
