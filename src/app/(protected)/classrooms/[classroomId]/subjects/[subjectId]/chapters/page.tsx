@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
+import Breadcrumbs from '@/components/Breadcrumbs'
 import { supabase } from '@/lib/supabaseClient'
 
 type Chapter = {
@@ -55,15 +56,16 @@ export default function ChaptersPage() {
 
   return (
     <main className="max-w-5xl mx-auto p-6 space-y-6">
+      <Breadcrumbs
+        items={[
+          { label: 'Classrooms', href: '/classrooms' },
+          { label: 'Subjects', href: `/classrooms/${classroomId}/subjects` },
+          { label: 'Chapters' },
+        ]}
+      />
       <div className="flex items-center justify-between gap-3">
         <div>
-          <Link
-            href={`/classrooms/${classroomId}/subjects`}
-            className="text-sm text-blue-600 hover:underline"
-          >
-            ← Back to Subjects
-          </Link>
-          <h1 className="mt-2 text-2xl font-semibold">Chapters</h1>
+          <h1 className="text-2xl font-semibold">Chapters</h1>
           <p className="text-sm text-gray-600">
             Chapters hold the learning content students consume for this subject.
           </p>
@@ -111,6 +113,18 @@ export default function ChaptersPage() {
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                  <Link
+                    href={`/classrooms/${classroomId}/subjects/${subjectId}/chapters/${chapter.id}/quizzes`}
+                    className="rounded-full border border-black/10 px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50"
+                  >
+                    Quizzes
+                  </Link>
+                  <Link
+                    href={`/classrooms/${classroomId}/subjects/${subjectId}/chapters/${chapter.id}/progress`}
+                    className="rounded-full border border-black/10 px-3 py-1.5 text-sm font-medium hover:bg-black/5"
+                  >
+                    Progress
+                  </Link>
                   <Link
                     href={`/classrooms/${classroomId}/subjects/${subjectId}/chapters/${chapter.id}/edit`}
                     className="rounded-full border border-black/10 px-3 py-1.5 text-sm font-medium hover:bg-black/5"

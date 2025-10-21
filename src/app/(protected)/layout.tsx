@@ -4,11 +4,9 @@ import AuthGuard from '@/components/AuthGuard'
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body>
-        <TenantHeader />
-        <AuthGuard>{children}</AuthGuard>
-      </body>
-    </html>
+    <>
+      <TenantHeader />
+      <AuthGuard>{children}</AuthGuard>
+    </>
   )
 }

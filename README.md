@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## Shaikhoology LMS
 
-## Getting Started
+Multi-tenant learning management system built with **Next.js 15 (App Router + Turbopack)** and **Supabase**.
 
-First, run the development server:
+### Stage Overview
+
+- **Stage 1:** Auth, onboarding, tenant creation, domain routing ✅
+- **Stage 2:** Protected layout, tenant header, classroom/subject/chapter CRUD ✅
+- **Stage 3 (current):** Quiz + learner progress foundation (schema, server actions, placeholder routes) 🚧
+
+### Requirements
+
+- Node.js 18+
+- Supabase project with Postgres 15+
+- Environment variables
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+NEXT_PUBLIC_SUPABASE_URL="https://<project-id>.supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY="<anon-key>"
+SUPABASE_SERVICE_ROLE_KEY="<service-role-key>"
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+> `SUPABASE_SERVICE_ROLE_KEY` is required for server actions that run on the server only. Keep it **out** of the browser environment.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Database migrations
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+All migrations live in `supabase/migrations`. Stage 3 introduces the quiz + progress schema, RLS, and helper functions.
 
-## Learn More
+Apply migrations with Supabase CLI:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+supabase db push
+# or, to target a local instance:
+supabase migration up
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Key objects introduced:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `question_type` + `chapter_progress_status` enums
+- `quizzes`, `questions`, `question_options`
+- `user_quiz_attempts`, `user_quiz_answers`
+- `user_chapter_progress`
+- `is_tenant_member(uuid, uuid)` helper + `set_current_timestamp` trigger
+- RLS enforced for every table (tenant isolation + per-user rules for attempts/answers/progress)
 
-## Deploy on Vercel
+### Server actions
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Located in `src/lib/actions/` and executed with Supabase service client + cookie backed auth.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `createQuiz`, `addQuestion`, `addQuestionOption`
+- `startAttempt`, `submitAttempt`
+- `markChapterProgress`
+
+These helpers infer tenant context on the server and revalidate the relevant routes upon success.
+
+### App structure highlights
+
+- `src/app/(protected)/classrooms/page.tsx` – tenant-classroom dashboard
+- `src/app/(protected)/classrooms/[classroomId]/subjects/[subjectId]/chapters/[chapterId]/quizzes/*` – quiz list, creation and detail scaffolds
+- `src/app/(protected)/classrooms/[classroomId]/subjects/[subjectId]/chapters/[chapterId]/progress/page.tsx` – learner progress placeholder
+- `src/components/Breadcrumbs.tsx` – shared breadcrumb navigation
+
+### Development
+
+```bash
+npm install
+npm run dev
+```
+
+### Quality checks
+
+```bash
+npm run lint
+npm run build
+```
+
+### Deployment
+
+Deployed on Vercel. Configure custom domains (`learn.shaikhoology.com`, `*.learn.shaikhoology.com`) and set the environment variables above in Project Settings → Environment Variables.
