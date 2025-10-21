@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '../../lib/supabaseClient'
 
 export default function AuthPage() {
@@ -7,6 +8,9 @@ export default function AuthPage() {
   const [password, setPassword] = useState('')
   const [mode, setMode] = useState<'signin'|'signup'>('signin')
   const [msg, setMsg] = useState<string>('')
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const next = searchParams?.get('next')
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -23,17 +27,21 @@ export default function AuthPage() {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
-        setMsg('Signed in ✅')
+        const target = next && next.startsWith('/') ? next : '/dashboard'
+        router.replace(target)
+        router.refresh()
       }
     } catch (err: unknown) {
-  const e = err as { message?: string }
-  setMsg(e.message ?? 'Auth error')
-}
+      const e = err as { message?: string }
+      setMsg(e.message ?? 'Auth error')
+    }
   }
 
   async function signOut() {
     await supabase.auth.signOut()
     setMsg('Signed out.')
+    router.replace('/auth')
+    router.refresh()
   }
 
   return (

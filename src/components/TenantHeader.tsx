@@ -1,40 +1,23 @@
 // NO "use client"
-import { headers } from 'next/headers'
+import Link from 'next/link'
+import { cookies, headers } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
+import SignOutButton from './SignOutButton'
+import { findTenantByHost } from '@/lib/tenant'
 
 const supa = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-async function findTenantByHost(host: string) {
-  const h = host.toLowerCase()
-
-  // ali.learn.shaikhoology.com → sub = 'ali'
-  if (h.endsWith('learn.shaikhoology.com')) {
-    const sub = h.split('.')[0]
-    if (sub && sub !== 'learn') {
-      const { data } = await supa
-        .from('tenant_domains')
-        .select('tenant_id')
-        .eq('subdomain', sub)
-        .maybeSingle()
-      return data?.tenant_id ?? null
-    }
-  }
-
-  // custom domain
-  const { data } = await supa
-    .from('tenant_domains')
-    .select('tenant_id')
-    .eq('custom_domain', h)
-    .maybeSingle()
-  return data?.tenant_id ?? null
-}
-
 export default async function TenantHeader() {
-  const host = (await headers()).get('host') ?? ''
-  const tenantId = await findTenantByHost(host)
+  const cookieStore = cookies()
+  let tenantId = cookieStore.get('tenant_id')?.value ?? null
+
+  if (!tenantId) {
+    const host = headers().get('host') ?? ''
+    tenantId = (await findTenantByHost(host))?.tenant_id ?? null
+  }
 
   let title = 'Shaikhoology LMS'
   if (tenantId) {
@@ -50,10 +33,14 @@ export default async function TenantHeader() {
     <header className="p-4 border-b">
       <div className="max-w-5xl mx-auto flex items-center justify-between">
         <strong>{title}</strong>
-        <nav className="text-sm">
-          <a href="/dashboard">Dashboard</a>
-          <span className="mx-2">·</span>
-          <a href="/auth">Auth</a>
+        <nav className="flex items-center gap-3 text-sm">
+          <Link href="/dashboard" className="hover:underline">
+            Dashboard
+          </Link>
+          <Link href="/classrooms" className="hover:underline">
+            Classrooms
+          </Link>
+          <SignOutButton />
         </nav>
       </div>
     </header>
