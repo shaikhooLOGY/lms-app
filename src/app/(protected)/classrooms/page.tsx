@@ -16,9 +16,10 @@ const supa = createClient(
 )
 
 async function resolveTenantId() {
-  const tenantCookie = cookies().get('tenant_id')?.value ?? null
+  const cookieStore = await cookies()
+  const tenantCookie = cookieStore.get('tenant_id')?.value ?? null
   if (tenantCookie) return tenantCookie
-  const host = headers().get('host') ?? ''
+  const host = (await headers()).get('host') ?? ''
   const found = await findTenantByHost(host)
   return found?.tenant_id ?? null
 }

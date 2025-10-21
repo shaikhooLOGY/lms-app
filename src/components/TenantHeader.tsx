@@ -11,11 +11,11 @@ const supa = createClient(
 )
 
 export default async function TenantHeader() {
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   let tenantId = cookieStore.get('tenant_id')?.value ?? null
 
   if (!tenantId) {
-    const host = headers().get('host') ?? ''
+    const host = (await headers()).get('host') ?? ''
     tenantId = (await findTenantByHost(host))?.tenant_id ?? null
   }
 
