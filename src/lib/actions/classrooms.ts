@@ -35,13 +35,18 @@ export async function createClassroomAction(
 
     const { data: membership, error: membershipError } = await client
       .from('tenant_members')
-      .select('tenant_id')
+      .select('tenant_id, role')
       .eq('tenant_id', tenantId)
       .eq('user_id', user.id)
       .maybeSingle()
 
     if (membershipError) throw new Error(membershipError.message)
     if (!membership) return { error: 'You are not authorized to create classrooms for this tenant.' }
+
+    const allowedRoles = new Set(['teacher', 'admin', 'owner'])
+    if (!allowedRoles.has((membership.role ?? '').toLowerCase())) {
+      return { error: 'Only institute admins can create classrooms.' }
+    }
 
     const { error } = await client.from('classrooms').insert([
       {

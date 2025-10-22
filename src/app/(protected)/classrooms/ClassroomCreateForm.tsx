@@ -1,62 +1,55 @@
 'use client'
 
-import { FormEvent, useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabaseClient'
+import { useFormState, useFormStatus } from 'react-dom'
+import { createClassroomAction, type ClassroomFormState } from '@/lib/actions/classrooms'
+import { Button } from '@/components/ui/button'
+
+const initialState: ClassroomFormState = {}
 
 type Props = {
-  tenantId: string
+  canCreate: boolean
 }
 
-export default function ClassroomCreateForm({ tenantId }: Props) {
-  const router = useRouter()
-  const [title, setTitle] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [pending, startTransition] = useTransition()
+export default function ClassroomCreateForm({ canCreate }: Props) {
+  const [state, formAction] = useFormState(createClassroomAction, initialState)
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setError(null)
-
-    const { error: insertError } = await supabase
-      .from('classrooms')
-      .insert([{ tenant_id: tenantId, title }])
-
-    if (insertError) {
-      setError(insertError.message)
-      return
-    }
-
-    setTitle('')
-    startTransition(() => {
-      router.refresh()
-    })
-  }
+  if (!canCreate) return null
 
   return (
     <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row sm:items-end">
-        <label className="flex-1 text-sm font-medium">
+      <form action={formAction} className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
+        <label className="text-sm font-medium">
           Name
           <input
+            name="title"
             type="text"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-base"
-            placeholder="Physics 101"
             required
-            disabled={pending}
+            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            placeholder="Physics 101"
           />
         </label>
-        <button
-          type="submit"
-          className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium hover:bg-black/5 disabled:opacity-60"
-          disabled={pending}
-        >
-          {pending ? 'Creating…' : 'Create Classroom'}
-        </button>
+        <SubmitButton />
+        <label className="sm:col-span-2 text-sm font-medium">
+          Description <span className="font-normal text-gray-400">(optional)</span>
+          <textarea
+            name="description"
+            rows={3}
+            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            placeholder="Outline what students will learn."
+          />
+        </label>
       </form>
-      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      {state.error && <p className="mt-2 text-sm text-red-600">{state.error}</p>}
+      {state.success && <p className="mt-2 text-sm text-green-600">Classroom created!</p>}
     </section>
+  )
+}
+
+function SubmitButton() {
+  const { pending } = useFormStatus()
+  return (
+    <Button type="submit" disabled={pending} className="px-4 py-2">
+      {pending ? 'Creating…' : 'Create classroom'}
+    </Button>
   )
 }

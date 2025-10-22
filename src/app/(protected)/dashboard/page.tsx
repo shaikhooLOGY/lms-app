@@ -21,9 +21,11 @@ type Stats = {
 const NAV_ITEMS = [
   { label: 'Dashboard', href: '/dashboard' },
   { label: 'Classrooms', href: '/classrooms' },
-  { label: 'Subjects', href: '/classrooms?view=subjects' },
+  { label: 'Subjects', href: '/subjects' },
   { label: 'Settings', href: '/settings' },
 ]
+
+const MANAGED_ROLES = new Set(['teacher', 'admin', 'owner'])
 
 export default function DashboardPage() {
   const pathname = usePathname()
@@ -33,6 +35,7 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<Stats>({ classrooms: 0, subjects: 0, students: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [canManage, setCanManage] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -41,37 +44,59 @@ export default function DashboardPage() {
       setLoading(true)
       setError(null)
 
-      const [{ data: authData }, classroomsResult, tenantMembersResult] = await Promise.all([
-        supabase.auth.getUser(),
+      const { data: authData } = await supabase.auth.getUser()
+      if (!active) return
+      if (authData?.user) setEmail(authData.user.email ?? null)
+
+      const { data: membership, error: membershipError } = await supabase
+        .from('tenant_members')
+        .select('tenant_id, role')
+        .limit(1)
+        .maybeSingle()
+
+      if (!active) return
+
+      if (membershipError) {
+        setError(membershipError.message)
+        setLoading(false)
+        return
+      }
+
+      if (!membership) {
+        setError('You are not enrolled in any tenant yet.')
+        setLoading(false)
+        return
+      }
+
+      const tenantId = membership.tenant_id
+      const role = membership.role?.toLowerCase() ?? ''
+      setCanManage(MANAGED_ROLES.has(role))
+
+      const [classroomsResult, memberCountResult] = await Promise.all([
         supabase
           .from('classrooms')
           .select('id, title, subjects (id)')
+          .eq('tenant_id', tenantId)
           .order('created_at', { ascending: true }),
-        supabase.from('tenant_members').select('id', { count: 'exact', head: true }),
+        supabase
+          .from('tenant_members')
+          .select('id', { count: 'exact', head: true })
+          .eq('tenant_id', tenantId),
       ])
 
       if (!active) return
 
-      if (authData?.user) setEmail(authData.user.email ?? null)
-
       if (classroomsResult.error) {
         setError(classroomsResult.error.message)
-      } else {
-        const rows = (classroomsResult.data ?? []) as ClassroomRow[]
-        setClassrooms(rows)
-        const totalSubjects = rows.reduce((acc, row) => acc + (row.subjects?.length ?? 0), 0)
-        const totalStudents = tenantMembersResult.count ?? 0
-        setStats({
-          classrooms: rows.length,
-          subjects: totalSubjects,
-          students: totalStudents,
-        })
+        setLoading(false)
+        return
       }
 
-      if (!classroomsResult.error && tenantMembersResult.error) {
-        setError(tenantMembersResult.error.message)
-      }
-
+      const rows = (classroomsResult.data ?? []) as ClassroomRow[]
+      setClassrooms(rows)
+      const totalSubjects = rows.reduce((acc, row) => acc + (row.subjects?.length ?? 0), 0)
+      const totalStudents = memberCountResult.count ?? 0
+      setStats({ classrooms: rows.length, subjects: totalSubjects, students: totalStudents })
       setLoading(false)
     }
 
@@ -87,9 +112,7 @@ export default function DashboardPage() {
         <div className="px-6 py-4 text-lg font-semibold text-gray-900">Shaikhoology LMS</div>
         <nav className="flex-1 space-y-1 px-3">
           {NAV_ITEMS.map((item) => {
-            const isActive =
-              pathname === item.href ||
-              (item.href.includes('?') && pathname === item.href.split('?')[0])
+            const isActive = pathname === item.href
             return (
               <Link
                 key={item.href}
@@ -136,7 +159,7 @@ export default function DashboardPage() {
           <div className="flex items-center gap-3">
             <button
               type="button"
-              className="md:hidden rounded-md p-2 hover:bg-gray-100"
+              className="rounded-md p-2 hover:bg-gray-100 md:hidden"
               onClick={() => setSidebarOpen((prev) => !prev)}
               aria-label="Toggle sidebar"
             >
@@ -147,12 +170,14 @@ export default function DashboardPage() {
               <p className="text-sm text-gray-500">Overview of your institute at a glance.</p>
             </div>
           </div>
-          <Link
-            href="/classrooms/new"
-            className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-          >
-            Create classroom
-          </Link>
+          {canManage ? (
+            <Link
+              href="/classrooms/new"
+              className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+            >
+              Create classroom
+            </Link>
+          ) : null}
         </header>
 
         <main className="flex flex-1 flex-col gap-6 px-4 py-6 md:px-8">
@@ -204,7 +229,7 @@ export default function DashboardPage() {
                       ) : classrooms.length === 0 ? (
                         <tr>
                           <td className="px-3 py-6 text-center text-gray-500" colSpan={3}>
-                            No classrooms yet. Create your first classroom to get started.
+                            No classrooms yet.
                           </td>
                         </tr>
                       ) : (
@@ -220,7 +245,7 @@ export default function DashboardPage() {
                                 href={`/classrooms/${room.id}/subjects`}
                                 className="rounded-md px-3 py-1.5 text-sm font-medium text-blue-600 transition hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                               >
-                                Manage
+                                {canManage ? 'Manage' : 'View'}
                               </Link>
                             </td>
                           </tr>
