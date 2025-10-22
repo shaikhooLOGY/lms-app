@@ -1,13 +1,16 @@
 'use client'
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
-import { getCurrentUser } from '@/lib/session'
+import { createTenantAction } from '@/lib/actions/tenants'
 
 export default function Onboarding() {
   const [name, setName] = useState('')
   const [sub, setSub]   = useState('')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg]   = useState<string>('')
+  const [creating, startTransition] = useTransition()
+  const router = useRouter()
 
   async function checkSubdomain() {
     setMsg(''); setBusy(true)
@@ -21,41 +24,19 @@ export default function Onboarding() {
     else setMsg('✅ Available')
   }
 
-  async function createTenant(e: React.FormEvent) {
+  function createTenant(e: React.FormEvent) {
     e.preventDefault()
-    setMsg(''); setBusy(true)
-
-    try {
-      const user = await getCurrentUser()
-      if (!user) throw new Error('Please sign in first.')
-
-      // 1) create tenant (you are the owner)
-      const { data: t, error: tErr } = await supabase
-        .from('tenants')
-        .insert([{ name, owner_user_id: user.id }])
-        .select('id')
-        .single()
-      if (tErr) throw tErr
-
-      // 2) attach subdomain
-      const { error: dErr } = await supabase
-        .from('tenant_domains')
-        .insert([{ tenant_id: t.id, subdomain: sub, is_primary: true }])
-      if (dErr) throw dErr
-
-      // 3) self-membership as teacher (optional now; policy not strict yet)
-      await supabase
-        .from('tenant_members')
-        .insert([{ tenant_id: t.id, user_id: user.id, role: 'teacher' }])
-        .single()
-
-      setMsg(`🎉 Tenant created. Your URL will be: https://${sub}.learn.shaikhoology.com`)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (err: any) {
-      setMsg(err?.message ?? 'Something went wrong')
-    } finally {
-      setBusy(false)
-    }
+    setMsg('')
+    startTransition(async () => {
+      try {
+        await createTenantAction({ name, subdomain: sub })
+        router.replace('/admin/dashboard')
+        router.refresh()
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Something went wrong'
+        setMsg(message)
+      }
+    })
   }
 
   return (
@@ -81,15 +62,15 @@ export default function Onboarding() {
             style={{flex:1, padding:10}}
             required
           />
-          <button type="button" onClick={checkSubdomain} disabled={!sub || busy}>Check</button>
+          <button type="button" onClick={checkSubdomain} disabled={!sub || busy || creating}>Check</button>
         </div>
         <div style={{marginTop:6, color:'#666'}}>Will be: <code>{sub || '___'}.learn.shaikhoology.com</code></div>
 
         <button
-          type="submit" disabled={!name || !sub || busy}
+          type="submit" disabled={!name || !sub || busy || creating}
           style={{marginTop:16, padding:'8px 12px', border:'1px solid #ddd', borderRadius:8}}
         >
-          {busy ? 'Creating…' : 'Create'}
+          {creating ? 'Creating…' : 'Create'}
         </button>
       </form>
 

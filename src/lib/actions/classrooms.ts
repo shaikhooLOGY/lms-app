@@ -1,9 +1,52 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { cookies, headers } from 'next/headers'
+import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import { createServiceClient, getAuthenticatedUser } from './supabaseServer'
-import { findTenantByHost } from '@/lib/tenant'
+import { getIsSuperAdmin } from '@/lib/permissions'
+
+const ADMIN_ROLES = new Set(['owner', 'admin', 'teacher'])
+
+type TenantContext = {
+  tenantId: string | null
+  role: string | null
+}
+
+export async function resolveAdminTenantContext(
+  client = createServiceClient(),
+  userId?: string
+): Promise<TenantContext> {
+  const cookieStore = await cookies()
+  let subjectUserId = userId
+
+  const cookieTenant = cookieStore.get('tenant_id')?.value ?? null
+
+  if (!subjectUserId) {
+    const accessToken = cookieStore.get('sb-access-token')?.value
+    if (!accessToken) {
+      return { tenantId: null, role: null }
+    }
+
+    const { data: userData } = await client.auth.getUser(accessToken)
+    subjectUserId = userData?.user?.id ?? null
+    if (!subjectUserId) {
+      return { tenantId: null, role: null }
+    }
+  }
+
+  const { data: memberships } = await client
+    .from('tenant_members')
+    .select('tenant_id, role')
+    .eq('user_id', subjectUserId)
+    .in('role', Array.from(ADMIN_ROLES))
+
+  const membership = memberships?.find((m) => m.tenant_id === cookieTenant) ?? memberships?.[0] ?? null
+  const tenantId = cookieTenant ?? membership?.tenant_id ?? null
+  const role = membership?.role ?? null
+
+  return { tenantId, role }
+}
 
 export type ClassroomFormState = {
   error?: string
@@ -22,30 +65,22 @@ export async function createClassroomAction(
 
     const client = createServiceClient()
     const user = await getAuthenticatedUser(client)
-
-    const cookieStore = await cookies()
-    let tenantId = cookieStore.get('tenant_id')?.value ?? null
+    const { tenantId, role } = await resolveAdminTenantContext(client, user.id)
+    const isSuperAdmin = await getIsSuperAdmin()
 
     if (!tenantId) {
-      const host = (await headers()).get('host') ?? ''
-      tenantId = (await findTenantByHost(host))?.tenant_id ?? null
+      return {
+        error: isSuperAdmin
+          ? 'Select an institute before creating a classroom.'
+          : 'Tenant context missing. Please refresh and try again.',
+      }
     }
 
-    if (!tenantId) return { error: 'Tenant context missing. Please refresh and try again.' }
-
-    const { data: membership, error: membershipError } = await client
-      .from('tenant_members')
-      .select('tenant_id, role')
-      .eq('tenant_id', tenantId)
-      .eq('user_id', user.id)
-      .maybeSingle()
-
-    if (membershipError) throw new Error(membershipError.message)
-    if (!membership) return { error: 'You are not authorized to create classrooms for this tenant.' }
-
-    const allowedRoles = new Set(['teacher', 'admin', 'owner'])
-    if (!allowedRoles.has((membership.role ?? '').toLowerCase())) {
-      return { error: 'Only institute admins can create classrooms.' }
+    if (!isSuperAdmin) {
+      if (!role) return { error: 'You are not authorized to create classrooms for this tenant.' }
+      if (!ADMIN_ROLES.has(role.toLowerCase())) {
+        return { error: 'Only institute admins can create classrooms.' }
+      }
     }
 
     const { error } = await client.from('classrooms').insert([
@@ -53,13 +88,14 @@ export async function createClassroomAction(
         tenant_id: tenantId,
         title,
         description: description || null,
+        status: 'draft',
       },
     ])
 
     if (error) throw new Error(error.message)
 
-    revalidatePath('/dashboard')
-    revalidatePath('/classrooms')
+    revalidatePath('/admin/classrooms')
+    redirect('/admin/classrooms?status=created')
 
     return { success: true }
   } catch (error) {

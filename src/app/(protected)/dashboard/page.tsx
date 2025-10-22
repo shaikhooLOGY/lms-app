@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type MouseEvent } from 'react'
 import { usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -18,12 +18,7 @@ type Stats = {
   students: number
 }
 
-const NAV_ITEMS = [
-  { label: 'Dashboard', href: '/dashboard' },
-  { label: 'Classrooms', href: '/classrooms' },
-  { label: 'Subjects', href: '/subjects' },
-  { label: 'Settings', href: '/settings' },
-]
+const NAV_ITEMS = [{ label: 'Settings', href: '/settings' }]
 
 const MANAGED_ROLES = new Set(['teacher', 'admin', 'owner'])
 
@@ -36,6 +31,10 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [canManage, setCanManage] = useState(false)
+  const [role, setRole] = useState<string | null>(null)
+  const [tenantId, setTenantId] = useState<string | null>(null)
+  const [tenantMissing, setTenantMissing] = useState(false)
+  const [viewMode, setViewMode] = useState<'member' | 'admin'>('member')
 
   useEffect(() => {
     let active = true
@@ -63,14 +62,21 @@ export default function DashboardPage() {
       }
 
       if (!membership) {
-        setError('You are not enrolled in any tenant yet.')
+        setTenantMissing(true)
         setLoading(false)
         return
       }
 
       const tenantId = membership.tenant_id
-      const role = membership.role?.toLowerCase() ?? ''
-      setCanManage(MANAGED_ROLES.has(role))
+      const membershipRole = membership.role ?? null
+      const normalizedRole = membershipRole?.toLowerCase() ?? ''
+
+      setTenantMissing(false)
+      setTenantId(tenantId)
+      setRole(membershipRole)
+      const manage = MANAGED_ROLES.has(normalizedRole)
+      setCanManage(manage)
+      setViewMode(manage ? 'admin' : 'member')
 
       const [classroomsResult, memberCountResult] = await Promise.all([
         supabase
@@ -136,6 +142,48 @@ export default function DashboardPage() {
     [email, pathname]
   )
 
+  const friendlyRole = role ? role.charAt(0).toUpperCase() + role.slice(1) : canManage ? 'Admin' : 'Member'
+  const isAdminView = viewMode === 'admin'
+  const showCreateClassroom = canManage && isAdminView
+  const actionLabel = isAdminView ? 'Manage' : 'View'
+  const disabledLinkProps = isAdminView
+    ? undefined
+    : {
+        'aria-disabled': true,
+        tabIndex: -1,
+        onClick: (event: MouseEvent<HTMLAnchorElement>) => {
+          event.preventDefault()
+          event.stopPropagation()
+        },
+      }
+
+  if (tenantMissing) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center bg-gray-100 px-4 py-16">
+        <div className="w-full max-w-xl space-y-6 rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
+          <div className="space-y-2 text-center">
+            <h1 className="text-2xl font-semibold text-gray-900">Set up your institute</h1>
+            <p className="text-sm text-gray-600">
+              You are not linked to any institute yet. Create a new one or ask an administrator to invite you.
+            </p>
+          </div>
+          <div className="space-y-3">
+            <Link
+              href="/onboarding"
+              className="block rounded-md bg-blue-600 px-4 py-3 text-center text-sm font-medium text-white transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+            >
+              Create a new institute
+            </Link>
+            <div className="rounded-md border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+              Already part of an institute? Ask your admin to add you from the tenant members page or share their invite
+              link.
+            </div>
+          </div>
+        </div>
+      </main>
+    )
+  }
+
   return (
     <div className="flex min-h-screen bg-gray-100">
       <aside className="hidden w-64 shrink-0 border-r border-gray-200 bg-white md:block">
@@ -170,17 +218,111 @@ export default function DashboardPage() {
               <p className="text-sm text-gray-500">Overview of your institute at a glance.</p>
             </div>
           </div>
-          {canManage ? (
-            <Link
-              href="/classrooms/new"
-              className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-            >
-              Create classroom
-            </Link>
-          ) : null}
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
+              Role: <span className="capitalize">{friendlyRole}</span>
+            </span>
+            {tenantId && (
+              <span className="inline-flex items-center rounded-full border border-gray-200 px-3 py-1 text-xs text-gray-500">
+                Tenant ID: <code className="ml-1 text-gray-700">{tenantId}</code>
+              </span>
+            )}
+            {canManage ? (
+              <div className="inline-flex items-center rounded-lg border border-gray-200 bg-gray-50 p-1 text-xs font-medium text-gray-600 shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('member')}
+                  className={[
+                    'rounded-md px-3 py-1 transition',
+                    !isAdminView ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700',
+                  ].join(' ')}
+                >
+                  Member view
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('admin')}
+                  className={[
+                    'rounded-md px-3 py-1 transition',
+                    isAdminView ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700',
+                  ].join(' ')}
+                >
+                  Admin view
+                </button>
+              </div>
+            ) : null}
+            {showCreateClassroom ? (
+              <Link
+                href="/classrooms/new"
+                className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+              >
+                Create classroom
+              </Link>
+            ) : null}
+          </div>
         </header>
 
         <main className="flex flex-1 flex-col gap-6 px-4 py-6 md:px-8">
+          {canManage ? (
+            <section>
+              <Card>
+                <CardHeader>
+                  <CardTitle>{isAdminView ? 'Admin quick actions' : 'Administrator tools (disabled in member view)'}</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-wrap gap-3">
+                  <Link
+                    href="/classrooms/new"
+                    className={[
+                      'inline-flex items-center rounded-md border px-3 py-2 text-sm font-medium transition',
+                      isAdminView
+                        ? 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100'
+                        : 'border-gray-200 text-gray-400 cursor-not-allowed',
+                    ].join(' ')}
+                    {...(disabledLinkProps ?? {})}
+                  >
+                    New classroom
+                  </Link>
+                  <Link
+                    href="/subjects"
+                    className={[
+                      'inline-flex items-center rounded-md border px-3 py-2 text-sm font-medium transition',
+                      isAdminView
+                        ? 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100'
+                        : 'border-gray-200 text-gray-400 cursor-not-allowed',
+                    ].join(' ')}
+                    {...(disabledLinkProps ?? {})}
+                  >
+                    Manage subjects
+                  </Link>
+                  <Link
+                    href="/settings"
+                    className={[
+                      'inline-flex items-center rounded-md border px-3 py-2 text-sm font-medium transition',
+                      isAdminView
+                        ? 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100'
+                        : 'border-gray-200 text-gray-400 cursor-not-allowed',
+                    ].join(' ')}
+                    {...(disabledLinkProps ?? {})}
+                  >
+                    Institute settings
+                  </Link>
+                  <Link
+                    href="/onboarding"
+                    className={[
+                      'inline-flex items-center rounded-md border px-3 py-2 text-sm font-medium transition',
+                      isAdminView
+                        ? 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100'
+                        : 'border-gray-200 text-gray-400 cursor-not-allowed',
+                    ].join(' ')}
+                    {...(disabledLinkProps ?? {})}
+                  >
+                    Create another institute
+                  </Link>
+                </CardContent>
+              </Card>
+            </section>
+          ) : null}
+
           <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <StatCard title="Total Classrooms" value={stats.classrooms} loading={loading} />
             <StatCard title="Subjects" value={stats.subjects} loading={loading} />
@@ -215,7 +357,7 @@ export default function DashboardPage() {
                           Subjects
                         </th>
                         <th scope="col" className="px-3 py-2 text-right">
-                          Actions
+                          {isAdminView ? 'Actions' : 'Explore'}
                         </th>
                       </tr>
                     </thead>
@@ -245,7 +387,7 @@ export default function DashboardPage() {
                                 href={`/classrooms/${room.id}/subjects`}
                                 className="rounded-md px-3 py-1.5 text-sm font-medium text-blue-600 transition hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                               >
-                                {canManage ? 'Manage' : 'View'}
+                                {actionLabel}
                               </Link>
                             </td>
                           </tr>
