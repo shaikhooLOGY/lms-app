@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import Breadcrumbs from '@/components/Breadcrumbs'
 import { createQuiz, assertTenantMembership, fetchChapter, fetchClassroom, fetchSubject } from '@/lib/actions/quizzes'
-import { createServiceClient, getAuthenticatedUser } from '@/lib/actions/supabaseServer'
+import { createServiceClient, getOptionalUser } from '@/lib/actions/supabaseServer'
 
 type PageProps = {
   params: {
@@ -12,8 +12,17 @@ type PageProps = {
 }
 
 export default async function NewQuizPage({ params }: PageProps) {
+  const user = await getOptionalUser()
+  if (!user) {
+    return (
+      <main className="mx-auto max-w-3xl space-y-6 p-6">
+        <h1 className="text-2xl font-semibold">Create Quiz</h1>
+        <p className="text-sm text-gray-600">Please sign in to continue.</p>
+      </main>
+    )
+  }
+
   const client = createServiceClient()
-  const user = await getAuthenticatedUser(client)
 
   const chapter = await fetchChapter(client, params.chapterId)
   const subject = await fetchSubject(client, chapter.subject_id)

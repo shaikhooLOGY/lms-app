@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { cookies, headers } from 'next/headers'
 import ClassroomCreateForm from './ClassroomCreateForm'
 import { findTenantByHost } from '@/lib/tenant'
-import { createServiceClient, getAuthenticatedUser } from '@/lib/actions/supabaseServer'
+import { createServiceClient, getOptionalUser } from '@/lib/actions/supabaseServer'
 
 type MembershipRole = 'student' | 'teacher' | 'admin' | 'owner' | string | null
 
@@ -34,9 +34,18 @@ export default async function ClassroomsPage() {
     )
   }
 
+  const user = await getOptionalUser()
+  if (!user) {
+    return (
+      <main className="mx-auto max-w-5xl space-y-3 p-6">
+        <h1 className="text-xl font-semibold">Classrooms</h1>
+        <p className="text-sm text-gray-600">Please sign in to continue.</p>
+      </main>
+    )
+  }
+
   try {
     const service = createServiceClient()
-    const user = await getAuthenticatedUser(service)
 
     const { data: membership } = await service
       .from('tenant_members')

@@ -18,7 +18,7 @@ export async function resolveAdminTenantContext(
   userId?: string
 ): Promise<TenantContext> {
   const cookieStore = await cookies()
-  let subjectUserId = userId
+  let subjectUserId: string | null | undefined = userId
 
   const cookieTenant = cookieStore.get('tenant_id')?.value ?? null
 
@@ -33,6 +33,10 @@ export async function resolveAdminTenantContext(
     if (!subjectUserId) {
       return { tenantId: null, role: null }
     }
+  }
+
+  if (!subjectUserId) {
+    return { tenantId: null, role: null }
   }
 
   const { data: memberships } = await client

@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import Breadcrumbs from '@/components/Breadcrumbs'
 import { addQuestion, addQuestionOption, assertTenantMembership, fetchChapter, fetchClassroom, fetchQuiz, fetchSubject } from '@/lib/actions/quizzes'
-import { createServiceClient, getAuthenticatedUser } from '@/lib/actions/supabaseServer'
+import { createServiceClient, getOptionalUser } from '@/lib/actions/supabaseServer'
 
 type PageProps = {
   params: {
@@ -38,8 +38,17 @@ type OptionListRow = {
 }
 
 export default async function QuizDetailPage({ params }: PageProps) {
+  const user = await getOptionalUser()
+  if (!user) {
+    return (
+      <main className="mx-auto max-w-5xl space-y-6 p-6">
+        <h1 className="text-2xl font-semibold">Quiz details</h1>
+        <p className="text-sm text-gray-600">Please sign in to continue.</p>
+      </main>
+    )
+  }
+
   const client = createServiceClient()
-  const user = await getAuthenticatedUser(client)
 
   const quiz = await fetchQuiz(client, params.quizId)
   const chapter = await fetchChapter(client, params.chapterId)

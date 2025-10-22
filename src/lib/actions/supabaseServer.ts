@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js'
 
 type ServiceClient = SupabaseClient
+type AnonClient = SupabaseClient
 
 function getSupabaseUrl(): string {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -17,6 +18,21 @@ function getServiceRoleKey(): string {
   return key
 }
 
+function getAnonKey(): string {
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!key) throw new Error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY')
+  return key
+}
+
+function createAnonClient(): AnonClient {
+  return createClient(getSupabaseUrl(), getAnonKey(), {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  })
+}
+
 export function createServiceClient(): ServiceClient {
   return createClient(getSupabaseUrl(), getServiceRoleKey(), {
     auth: {
@@ -24,6 +40,18 @@ export function createServiceClient(): ServiceClient {
       autoRefreshToken: false,
     },
   })
+}
+
+export async function getOptionalUser(): Promise<User | null> {
+  const cookieStore = await cookies()
+  const accessToken = cookieStore.get('sb-access-token')?.value
+  if (!accessToken) return null
+
+  const client = createAnonClient()
+  const { data, error } = await client.auth.getUser(accessToken)
+  if (error || !data?.user) return null
+
+  return data.user
 }
 
 export async function getAuthenticatedUser(client: ServiceClient = createServiceClient()): Promise<User> {

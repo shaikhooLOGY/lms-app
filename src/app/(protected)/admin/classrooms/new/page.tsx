@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { createServiceClient, getAuthenticatedUser } from '@/lib/actions/supabaseServer'
+import { createServiceClient, getOptionalUser } from '@/lib/actions/supabaseServer'
 import { resolveAdminTenantContext, type ClassroomFormState } from '@/lib/actions/classrooms'
 import { AdminOnly } from '@/components/Guard'
 import { getIsSuperAdmin } from '@/lib/permissions'
@@ -15,10 +15,15 @@ type TenantSummary = {
 }
 
 async function loadTenantSummary(): Promise<TenantSummary> {
-  const client = createServiceClient()
-  const user = await getAuthenticatedUser(client)
-  const { tenantId, role } = await resolveAdminTenantContext(client, user.id)
+  const user = await getOptionalUser()
   const superAdmin = await getIsSuperAdmin()
+
+  if (!user) {
+    return { id: null, name: null, role: null, superAdmin }
+  }
+
+  const client = createServiceClient()
+  const { tenantId, role } = await resolveAdminTenantContext(client, user.id)
 
   if (!tenantId) {
     return { id: null, name: null, role, superAdmin }
