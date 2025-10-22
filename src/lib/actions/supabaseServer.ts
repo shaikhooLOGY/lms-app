@@ -27,7 +27,8 @@ export function createServiceClient(): ServiceClient {
 }
 
 export async function getAuthenticatedUser(client: ServiceClient = createServiceClient()): Promise<User> {
-  const accessToken = cookies().get('sb-access-token')?.value
+  const cookieStore = await cookies()
+  const accessToken = cookieStore.get('sb-access-token')?.value
   if (!accessToken) throw new Error('Not authenticated')
 
   const { data, error } = await client.auth.getUser(accessToken)
