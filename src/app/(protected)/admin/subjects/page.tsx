@@ -4,6 +4,7 @@ import TabBarMobile from '@/components/admin/TabBarMobile'
 import SubjectsClient from './SubjectsClient'
 import { listTenantClassroomsForSelect } from '@/lib/actions/admin/classrooms'
 import { listSubjects } from '@/lib/actions/admin/subjects'
+import { requireSession } from '@/lib/auth/requireSession'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,6 +21,7 @@ export default async function AdminSubjectsPage({
 }: {
   searchParams: Record<string, string | string[] | undefined>
 }) {
+  await requireSession('/admin/subjects')
   const classrooms = await listTenantClassroomsForSelect()
 
   const selectedClassroomParam = Array.isArray(searchParams.classroom)

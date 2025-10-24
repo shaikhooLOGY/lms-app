@@ -1,8 +1,10 @@
 import { AdminOnly } from '@/components/Guard'
+import { requireSession } from '@/lib/auth/requireSession'
 
 export const dynamic = 'force-dynamic'
 
 export default async function AdminEnrollmentsPage() {
+  await requireSession('/admin/enrollments')
   const content = await AdminOnly({
     children: (
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-10">

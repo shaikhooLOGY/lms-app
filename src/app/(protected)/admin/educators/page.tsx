@@ -5,6 +5,7 @@ import EducatorsClient from './EducatorsClient'
 import { listMembersByRole } from '@/lib/actions/admin/memberships'
 import { resolveAdminTenantContext } from '@/lib/actions/classrooms'
 import { createServiceClient } from '@/lib/actions/supabaseServer'
+import { requireSession } from '@/lib/auth/requireSession'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,6 +17,7 @@ const mobileTabs = [
 ]
 
 export default async function AdminEducatorsPage() {
+  await requireSession('/admin/educators')
   const client = createServiceClient()
   const { tenantId } = await resolveAdminTenantContext(client)
   const members = await listMembersByRole('educators')

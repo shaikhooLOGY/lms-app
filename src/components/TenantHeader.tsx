@@ -7,7 +7,8 @@ import ModeToggle from './ModeToggle'
 import UserMenu from './UserMenu'
 import { findTenantByHost } from '@/lib/tenant'
 import { getViewMode, getIsSuperAdmin } from '@/lib/permissions'
-import { createServiceClient, getOptionalUser } from '@/lib/actions/supabaseServer'
+import { createServiceClient } from '@/lib/actions/supabaseServer'
+import { requireSession } from '@/lib/auth/requireSession'
 
 export default async function TenantHeader() {
   const cookieStore = await cookies()
@@ -18,19 +19,7 @@ export default async function TenantHeader() {
     tenantId = (await findTenantByHost(host))?.tenant_id ?? null
   }
 
-  const user = await getOptionalUser()
-  if (!user) {
-    return (
-      <header className="border-b p-4">
-        <div className="mx-auto flex max-w-5xl items-center justify-between">
-          <strong>Shaikhoology LMS</strong>
-          <Link href="/sign-in" className="text-sm font-medium text-blue-600 hover:underline">
-            Sign in
-          </Link>
-        </div>
-      </header>
-    )
-  }
+  const user = await requireSession()
 
   const client = createServiceClient()
   const [mode, superAdmin] = await Promise.all([getViewMode(), getIsSuperAdmin()])

@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { AdminOnly } from '@/components/Guard'
+import { requireSession } from '@/lib/auth/requireSession'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,6 +14,7 @@ export default async function AdminSubjectChaptersPage({
   params: Promise<PageParams>
 }) {
   const { subjectId } = await params
+  await requireSession(`/admin/classrooms/subjects/${subjectId}/chapters`)
 
   const content = await AdminOnly({
     children: (

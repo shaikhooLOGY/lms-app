@@ -5,6 +5,7 @@ import SettingsClient from './SettingsClient'
 import { fetchSettings } from '@/lib/actions/admin/settings'
 import { createServiceClient } from '@/lib/actions/supabaseServer'
 import { resolveAdminTenantContext } from '@/lib/actions/classrooms'
+import { requireSession } from '@/lib/auth/requireSession'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,6 +17,7 @@ const mobileTabs = [
 ]
 
 export default async function AdminSettingsPage() {
+  await requireSession('/admin/settings')
   const client = createServiceClient()
   const { tenantId } = await resolveAdminTenantContext(client)
   const settings = tenantId ? await fetchSettings() : null

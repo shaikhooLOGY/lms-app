@@ -5,6 +5,7 @@ import LessonsClient from './LessonsClient'
 import { listTenantClassroomsForSelect } from '@/lib/actions/admin/classrooms'
 import { listSubjectsForSelect } from '@/lib/actions/admin/subjects'
 import { listLessons } from '@/lib/actions/admin/lessons'
+import { requireSession } from '@/lib/auth/requireSession'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,6 +22,7 @@ export default async function AdminLessonsPage({
 }: {
   searchParams: Record<string, string | string[] | undefined>
 }) {
+  await requireSession('/admin/lessons')
   const classrooms = await listTenantClassroomsForSelect()
   const classroomIdParam = Array.isArray(searchParams.classroom)
     ? searchParams.classroom[0]

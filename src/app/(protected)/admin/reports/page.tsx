@@ -3,6 +3,7 @@ import TopBar from '@/components/admin/TopBar'
 import TabBarMobile from '@/components/admin/TabBarMobile'
 import ReportsClient from './ReportsClient'
 import { fetchReports } from '@/lib/actions/admin/reports'
+import { requireSession } from '@/lib/auth/requireSession'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,6 +34,7 @@ export default async function AdminReportsPage({
   searchParams: Record<string, string | string[] | undefined>
 }) {
   const { start, end } = getDefaultRange(searchParams)
+  await requireSession('/admin/reports')
   const reports = await fetchReports(start, end)
 
   const content = await AdminOnly({

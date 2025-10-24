@@ -4,6 +4,7 @@ import TabBarMobile from '@/components/admin/TabBarMobile'
 import { listClassrooms } from '@/lib/actions/admin/classrooms'
 import { classroomStatuses } from '@/lib/actions/admin/classrooms.shared'
 import ClassroomsClient from '../ClassroomsClient'
+import { requireSession } from '@/lib/auth/requireSession'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,6 +20,7 @@ export default async function AdminClassroomsListPage({
 }: {
   searchParams: Record<string, string | string[] | undefined>
 }) {
+  await requireSession('/admin/classrooms')
   const search = Array.isArray(searchParams.search) ? searchParams.search[0] : searchParams.search ?? ''
   const statusParam = Array.isArray(searchParams.status) ? searchParams.status[0] : searchParams.status ?? 'all'
 

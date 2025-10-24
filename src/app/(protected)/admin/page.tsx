@@ -4,6 +4,7 @@ import AdminCard from '@/components/admin/AdminCard'
 import TabBarMobile from '@/components/admin/TabBarMobile'
 import EmptyState from '@/components/admin/EmptyState'
 import { fetchMetricSummary } from '@/lib/metrics'
+import { requireSession } from '@/lib/auth/requireSession'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,6 +16,7 @@ const mobileTabs = [
 ]
 
 export default async function AdminHomePage() {
+  await requireSession('/admin')
   const metrics = await fetchMetricSummary()
 
   const content = await AdminOnly({

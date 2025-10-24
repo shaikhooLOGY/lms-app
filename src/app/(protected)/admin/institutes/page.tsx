@@ -3,6 +3,7 @@ import TopBar from '@/components/admin/TopBar'
 import TabBarMobile from '@/components/admin/TabBarMobile'
 import { listTenants } from '@/lib/actions/admin/tenants'
 import { tenantStatusEnum } from '@/lib/validators/tenant'
+import { requireSession } from '@/lib/auth/requireSession'
 import InstitutesClient, { NewInstituteButton } from './InstitutesClient'
 
 export const dynamic = 'force-dynamic'
@@ -21,6 +22,7 @@ export default async function AdminInstitutesPage({
 }: {
   searchParams: Record<string, string | string[] | undefined>
 }) {
+  await requireSession('/admin/institutes')
   const search = Array.isArray(searchParams.search) ? searchParams.search[0] : searchParams.search ?? ''
   const statusParam = Array.isArray(searchParams.status) ? searchParams.status[0] : searchParams.status ?? 'all'
 

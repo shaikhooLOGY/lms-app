@@ -3,6 +3,7 @@ import TopBar from '@/components/admin/TopBar'
 import TabBarMobile from '@/components/admin/TabBarMobile'
 import ApprovalsClient from './ApprovalsClient'
 import { listPendingApprovals } from '@/lib/actions/admin/approvals'
+import { requireSession } from '@/lib/auth/requireSession'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,6 +15,7 @@ const mobileTabs = [
 ]
 
 export default async function AdminApprovalsPage() {
+  await requireSession('/admin/approvals')
   const approvals = await listPendingApprovals()
 
   const content = await AdminOnly({

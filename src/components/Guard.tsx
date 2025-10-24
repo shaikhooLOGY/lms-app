@@ -1,7 +1,7 @@
 import { ReactNode } from 'react'
 import { cookies } from 'next/headers'
 import { getViewMode, isAdminLike, getIsSuperAdmin } from '@/lib/permissions'
-import { getOptionalUser } from '@/lib/actions/supabaseServer'
+import { requireSession } from '@/lib/auth/requireSession'
 
 type AdminOnlyProps = {
   tenantId?: string | null
@@ -9,10 +9,7 @@ type AdminOnlyProps = {
 }
 
 export async function AdminOnly({ tenantId, children }: AdminOnlyProps) {
-  const user = await getOptionalUser()
-  if (!user) {
-    return <p className="p-6 text-sm text-gray-600">Please sign in to continue.</p>
-  }
+  await requireSession()
 
   const superAdmin = await getIsSuperAdmin()
   if (superAdmin) {
