@@ -1,9 +1,9 @@
 import { AdminOnly } from '@/components/Guard'
 import TopBar from '@/components/admin/TopBar'
 import TabBarMobile from '@/components/admin/TabBarMobile'
-import { listClassrooms } from '@/lib/actions/admin/classrooms'
-import { classroomStatuses } from '@/lib/actions/admin/classrooms.shared'
-import ClassroomsClient from '../ClassroomsClient'
+import { listTenants } from '@/lib/actions/admin/tenants'
+import { tenantStatusEnum } from '@/lib/validators/tenant'
+import InstitutesClient, { NewInstituteButton } from './InstitutesClient'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,7 +14,9 @@ const mobileTabs = [
   { href: '/admin/approvals', label: 'Approvals', icon: <span>✅</span> },
 ]
 
-export default async function AdminClassroomsListPage({
+const statuses = ['all', ...tenantStatusEnum.options]
+
+export default async function AdminInstitutesPage({
   searchParams,
 }: {
   searchParams: Record<string, string | string[] | undefined>
@@ -22,29 +24,32 @@ export default async function AdminClassroomsListPage({
   const search = Array.isArray(searchParams.search) ? searchParams.search[0] : searchParams.search ?? ''
   const statusParam = Array.isArray(searchParams.status) ? searchParams.status[0] : searchParams.status ?? 'all'
 
-  const records = await listClassrooms(search || null, statusParam)
+  const { records } = await listTenants(search || null, statusParam === 'all' ? null : statusParam)
 
   const content = await AdminOnly({
     children: (
       <main className="relative mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-8 pb-20 md:px-8">
         <TopBar
-          title="Classrooms"
-          subtitle="Manage classroom lifecycle, assign educators, and control publishing workflows."
+          title="Institutes"
+          subtitle="Manage tenants, onboarding, and lifecycle for every institute on the platform."
+          actions={<NewInstituteButton />}
         />
         <TabBarMobile tabs={mobileTabs} />
 
         <FilterBar selectedStatus={statusParam} search={search} />
 
-        <ClassroomsClient records={records} />
+        <InstitutesClient records={records} />
       </main>
     ),
   })
 
   if (!content) {
     return (
-      <main className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-6 py-16 text-purple-100">
+      <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-6 py-16 text-purple-100">
         <h1 className="text-2xl font-semibold">Access restricted</h1>
-        <p className="text-sm text-purple-200">Switch to admin view or request elevated permissions to manage classrooms.</p>
+        <p className="text-sm text-purple-200">
+          Switch to admin view or request elevated permissions to manage institutes.
+        </p>
       </main>
     )
   }
@@ -61,7 +66,7 @@ function FilterBar({ selectedStatus, search }: { selectedStatus: string; search:
           type="search"
           name="search"
           defaultValue={search}
-          placeholder="Search classrooms"
+          placeholder="Search institutes"
           className="w-full rounded-full border border-purple-700/40 bg-transparent px-4 py-2 text-sm text-white placeholder:text-purple-300 focus:border-purple-400 focus:outline-none"
         />
       </div>
@@ -71,7 +76,7 @@ function FilterBar({ selectedStatus, search }: { selectedStatus: string; search:
           defaultValue={selectedStatus}
           className="rounded-full border border-purple-700/40 bg-transparent px-4 py-2 text-sm text-white focus:border-purple-400 focus:outline-none"
         >
-          {classroomStatuses.map((option) => (
+          {statuses.map((option) => (
             <option key={option} value={option} className="bg-[#0b0615]">
               {option.replace('_', ' ')}
             </option>

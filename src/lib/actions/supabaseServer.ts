@@ -5,7 +5,6 @@ import { createClient, type SupabaseClient, type User } from '@supabase/supabase
 
 type ServiceClient = SupabaseClient
 type AnonClient = SupabaseClient
-
 function getSupabaseUrl(): string {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   if (!url) throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL')

@@ -1,18 +1,14 @@
-## Shaikhoology LMS
+## Shaikhoology LMS – SuperAdmin Release
 
-Multi-tenant learning management system built with **Next.js 15 (App Router + Turbopack)** and **Supabase**.
+Multi-tenant learning management system powered by **Next.js 15 (App Router + Turbopack)**, **React 19**, and **Supabase Postgres + Auth**. This build introduces the full SuperAdmin console: institutes, classrooms, subjects, lessons, educator/student management, approvals, settings, and reporting.
 
-### Stage Overview
+### 1. Prerequisites
+- **Node.js 18+**
+- **Supabase project** (Postgres 15+) with Row-Level Security enabled
+- Supabase CLI (`npm install -g supabase`) for applying migrations locally
 
-- **Stage 1:** Auth, onboarding, tenant creation, domain routing ✅
-- **Stage 2:** Protected layout, tenant header, classroom/subject/chapter CRUD ✅
-- **Stage 3 (current):** Quiz + learner progress foundation (schema, server actions, placeholder routes) 🚧
-
-### Requirements
-
-- Node.js 18+
-- Supabase project with Postgres 15+
-- Environment variables
+### 2. Environment variables
+Create a `.env.local` at the project root:
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL="https://<project-id>.supabase.co"
@@ -20,60 +16,65 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY="<anon-key>"
 SUPABASE_SERVICE_ROLE_KEY="<service-role-key>"
 ```
 
-> `SUPABASE_SERVICE_ROLE_KEY` is required for server actions that run on the server only. Keep it **out** of the browser environment.
+> `SUPABASE_SERVICE_ROLE_KEY` is used solely on the server. Never expose it to the browser.
 
-### Database migrations
-
-All migrations live in `supabase/migrations`. Stage 3 introduces the quiz + progress schema, RLS, and helper functions.
-
-Apply migrations with Supabase CLI:
+Optional extras:
 
 ```bash
-supabase db push
-# or, to target a local instance:
-supabase migration up
+SLACK_WEBHOOK_URL="https://hooks.slack.com/..."     # Settings → Notifications (if enabled)
+NEXT_PUBLIC_SITE_URL="https://admin.yourdomain.com" # Used by branded links / email templates
 ```
 
-Key objects introduced:
+### 3. Database setup
+All migrations, policies, and helper functions live in `supabase/migrations`.
 
-- `question_type` + `chapter_progress_status` enums
-- `quizzes`, `questions`, `question_options`
-- `user_quiz_attempts`, `user_quiz_answers`
-- `user_chapter_progress`
-- `is_tenant_member(uuid, uuid)` helper + `set_current_timestamp` trigger
-- RLS enforced for every table (tenant isolation + per-user rules for attempts/answers/progress)
+```bash
+# Apply migrations against local Supabase (supabase start)
+supabase db push
 
-### Server actions
+# Or target your hosted project
+db_url="postgresql://user:pass@host:5432/postgres"
+supabase migration up --db-url "$db_url"
+```
 
-Located in `src/lib/actions/` and executed with Supabase service client + cookie backed auth.
+Key tables/enums for this release:
+- **Core:** `tenants`, `tenant_domains`, `tenant_members`, `memberships`, `tenant_settings`
+- **Learning:** `classrooms`, `subjects`, `chapters`, `enrollments`, `approvals`, `activity_logs`
+- **Progress & quizzes:** `quizzes`, `questions`, `question_options`, `user_chapter_progress`, `user_subject_progress`
 
-- `createQuiz`, `addQuestion`, `addQuestionOption`
-- `startAttempt`, `submitAttempt`
-- `markChapterProgress`
+All tables ship with RLS to enforce tenant isolation + per-user access.
 
-These helpers infer tenant context on the server and revalidate the relevant routes upon success.
-
-### App structure highlights
-
-- `src/app/(protected)/classrooms/page.tsx` – tenant-classroom dashboard
-- `src/app/(protected)/classrooms/[classroomId]/subjects/[subjectId]/chapters/[chapterId]/quizzes/*` – quiz list, creation and detail scaffolds
-- `src/app/(protected)/classrooms/[classroomId]/subjects/[subjectId]/chapters/[chapterId]/progress/page.tsx` – learner progress placeholder
-- `src/components/Breadcrumbs.tsx` – shared breadcrumb navigation
-
-### Development
-
+### 4. Install & run
 ```bash
 npm install
 npm run dev
+# visit http://localhost:3000
 ```
 
-### Quality checks
+SuperAdmin access requires a user inside `public.superadmins`. Once authenticated, open `/admin` to reach the control center.
 
+### 5. Quality checks
 ```bash
+# Type safety
+npx tsc --noEmit
+
+# ESLint (flat config)
 npm run lint
+
+# Production build (Turbopack)
 npm run build
 ```
 
-### Deployment
+### 6. Deployment notes
+- Deploy on **Vercel** or any Node-compatible environment.
+- Configure the environment variables above within your hosting provider.
+- For institute subdomains (e.g. `<tenant>.learn.shaikhoology.com`), add wildcard DNS and populate `tenant_domains` accordingly.
+- Background analytics or email digests can reuse `/admin/reports` server actions.
 
-Deployed on Vercel. Configure custom domains (`learn.shaikhoology.com`, `*.learn.shaikhoology.com`) and set the environment variables above in Project Settings → Environment Variables.
+### 7. Repository tour
+- `src/app/(protected)/admin/*` – SuperAdmin app (dashboard, institutes, classrooms, subjects, lessons, educators, students, approvals, settings, reports)
+- `src/lib/actions/admin/*` – Supabase server actions with optimistic updates and audit logging
+- `src/components/admin/*` – Reusable dark/purple UI primitives (cards, tables, drawers, modals)
+- `src/vendor/zod.ts` – lightweight Zod-compatible runtime for sandboxed validation
+
+Happy shipping!

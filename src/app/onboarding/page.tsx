@@ -2,7 +2,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
-import { createTenantAction } from '@/lib/actions/tenants'
+import { upsertTenantAction } from '@/lib/actions/admin/tenants'
 
 export default function Onboarding() {
   const [name, setName] = useState('')
@@ -29,7 +29,15 @@ export default function Onboarding() {
     setMsg('')
     startTransition(async () => {
       try {
-        await createTenantAction({ name, subdomain: sub })
+        const formData = new FormData()
+        formData.append('name', name)
+        formData.append('subdomain', sub)
+        const result = await upsertTenantAction(formData)
+        if (result?.error) {
+          setMsg(result.error)
+          return
+        }
+        setMsg('🎉 Institute created')
         router.replace('/admin/dashboard')
         router.refresh()
       } catch (error) {
