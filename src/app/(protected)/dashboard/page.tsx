@@ -184,13 +184,17 @@ export default function DashboardPage() {
     )
   }
 
+  const isAdminPath = pathname.startsWith('/admin')
+
   return (
     <div className="flex min-h-screen bg-gray-100">
-      <aside className="hidden w-64 shrink-0 border-r border-gray-200 bg-white md:block">
-        {sidebarContent}
-      </aside>
+      {!isAdminPath && (
+        <aside className="hidden w-64 shrink-0 border-r border-gray-200 bg-white md:block">
+          {sidebarContent}
+        </aside>
+      )}
 
-      {sidebarOpen && (
+      {sidebarOpen && !isAdminPath && (
         <div className="fixed inset-0 z-40 flex md:hidden">
           <div className="w-64 border-r border-gray-200 bg-white shadow-lg">{sidebarContent}</div>
           <button

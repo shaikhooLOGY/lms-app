@@ -33,10 +33,19 @@ export default function UserMenu({ email, tenantName, role, isSuperAdmin, viewMo
     return () => document.removeEventListener('mousedown', handleClick)
   }, [open])
 
-  const badgeLabel = useMemo(() => {
-    if (isSuperAdmin) return 'Superadmin'
-    if (!role) return 'Member'
-    return role.charAt(0).toUpperCase() + role.slice(1)
+  const rolePresentation = useMemo(() => {
+    const normalized = role?.toLowerCase() ?? ''
+    if (isSuperAdmin) {
+      return { label: 'Superadmin', badgeClass: 'bg-purple-600/30 text-purple-100' }
+    }
+    const map: Record<string, { label: string; badgeClass: string }> = {
+      owner: { label: 'Owner', badgeClass: 'bg-purple-500/25 text-purple-100' },
+      admin: { label: 'Admin', badgeClass: 'bg-indigo-500/25 text-indigo-100' },
+      teacher: { label: 'Teacher', badgeClass: 'bg-blue-500/25 text-blue-100' },
+      student: { label: 'Student', badgeClass: 'bg-emerald-500/25 text-emerald-100' },
+      banned: { label: 'Banned', badgeClass: 'bg-red-500/30 text-red-100' },
+    }
+    return map[normalized] ?? { label: 'Member', badgeClass: 'bg-slate-500/25 text-slate-100' }
   }, [isSuperAdmin, role])
 
   const initials = useMemo(() => {
@@ -61,6 +70,7 @@ export default function UserMenu({ email, tenantName, role, isSuperAdmin, viewMo
   function handleSignOut() {
     startSignOut(async () => {
       await supabase.auth.signOut()
+      await fetch('/api/auth/session', { method: 'DELETE', credentials: 'include' }).catch(() => undefined)
       setOpen(false)
       router.replace('/auth')
       router.refresh()
@@ -72,18 +82,31 @@ export default function UserMenu({ email, tenantName, role, isSuperAdmin, viewMo
       <button
         type="button"
         onClick={handleToggle}
-        className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-sm font-semibold text-gray-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="relative flex h-9 w-9 items-center justify-center rounded-full bg-purple-500/20 text-sm font-semibold text-purple-100 hover:bg-purple-500/30 focus:outline-none focus:ring-2 focus:ring-purple-400"
         aria-label="Open profile menu"
       >
         {initials}
+        <span
+          className={[
+            'absolute -right-2 -top-1 rounded-full border border-purple-900/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+            rolePresentation.badgeClass,
+          ].join(' ')}
+        >
+          {rolePresentation.label}
+        </span>
       </button>
       {open ? (
         <div className="absolute right-0 z-50 mt-3 w-64 rounded-lg border border-gray-200 bg-white shadow-lg">
           <div className="border-b border-gray-100 px-4 py-3">
             <p className="text-sm font-medium text-gray-900">{email ?? 'Unknown user'}</p>
             {tenantName ? <p className="text-xs text-gray-500">{tenantName}</p> : null}
-            <span className="mt-2 inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
-              {badgeLabel}
+            <span
+              className={[
+                'mt-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold uppercase tracking-wide',
+                rolePresentation.badgeClass,
+              ].join(' ')}
+            >
+              {rolePresentation.label}
             </span>
           </div>
           <div className="space-y-1 px-2 py-2 text-sm">

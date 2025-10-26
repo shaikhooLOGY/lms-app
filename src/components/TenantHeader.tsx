@@ -12,10 +12,11 @@ import { requireSession } from '@/lib/auth/requireSession'
 
 export default async function TenantHeader() {
   const cookieStore = await cookies()
-  let tenantId = cookieStore.get('tenant_id')?.value ?? null
+  const headerList = await headers()
 
+  let tenantId = cookieStore.get('tenant_id')?.value ?? null
   if (!tenantId) {
-    const host = (await headers()).get('host') ?? ''
+    const host = headerList.get('host') ?? ''
     tenantId = (await findTenantByHost(host))?.tenant_id ?? null
   }
 
@@ -54,23 +55,47 @@ export default async function TenantHeader() {
   ]
 
   const adminLinks = [
-    { href: '/admin/dashboard', label: 'Admin' },
+    { href: '/admin', label: 'Admin' },
     { href: '/admin/classrooms', label: 'Classrooms' },
-    { href: '/admin/enrollments', label: 'Enrollments' },
+    { href: '/admin/subjects', label: 'Subjects' },
+    { href: '/admin/lessons', label: 'Lessons' },
+    { href: '/admin/educators', label: 'Educators' },
+    { href: '/admin/students', label: 'Students' },
+    { href: '/admin/approvals', label: 'Approvals' },
+    { href: '/admin/settings', label: 'Settings' },
+    { href: '/admin/reports', label: 'Reports' },
   ]
 
   const links = mode === 'admin' ? adminLinks : userLinks
+  const currentPath = headerList.get('x-invoke-path') ?? headerList.get('x-pathname') ?? '/'
 
   return (
-    <header className="p-4 border-b">
-      <div className="max-w-5xl mx-auto flex items-center justify-between">
-        <strong>{title}</strong>
-        <nav className="flex items-center gap-3 text-sm">
-          {links.map((link) => (
-            <Link key={link.href} href={link.href} className="hover:underline">
-              {link.label}
-            </Link>
-          ))}
+    <header className="border-b border-purple-500/20 bg-gradient-to-r from-[#0b0615] via-[#0d081a] to-[#080512]">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
+        <div className="flex items-center gap-3 text-purple-100">
+          <Link href={mode === 'admin' ? '/admin' : '/dashboard'} className="flex items-center gap-2 font-semibold">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-purple-600/40 text-lg">Λ</span>
+            <span>{title}</span>
+          </Link>
+        </div>
+        <nav className="hidden items-center gap-2 text-sm font-medium text-purple-200 md:flex">
+          {links.map((link) => {
+            const active = currentPath === link.href || currentPath.startsWith(`${link.href}/`)
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={[
+                  'rounded-full px-3 py-1.5 transition',
+                  active ? 'bg-purple-600/30 text-white' : 'hover:bg-purple-500/10 hover:text-white',
+                ].join(' ')}
+              >
+                {link.label}
+              </Link>
+            )
+          })}
+        </nav>
+        <div className="flex items-center gap-3">
           {superAdmin ? <ModeToggle initialMode={mode} /> : null}
           <UserMenu
             email={user.email ?? null}
@@ -79,7 +104,7 @@ export default async function TenantHeader() {
             isSuperAdmin={superAdmin}
             viewMode={mode}
           />
-        </nav>
+        </div>
       </div>
     </header>
   )
